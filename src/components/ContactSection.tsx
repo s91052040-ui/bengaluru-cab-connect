@@ -1,36 +1,84 @@
 import { useState } from 'react';
-import { Phone, MapPin, Clock, Send } from 'lucide-react';
+import { Phone, MapPin, Clock, Send, Car } from 'lucide-react';
+import { z } from 'zod';
+
+const bookingSchema = z.object({
+  pickup: z.string().trim().min(2, "Enter pickup location").max(200),
+  drop: z.string().trim().min(2, "Enter drop location").max(200),
+  date: z.string().min(1, "Select date"),
+  time: z.string().min(1, "Select time"),
+  package: z.enum(['outstation', 'oneway', 'airport', 'local']),
+});
+
+const packageLabels: Record<string, string> = {
+  outstation: 'Outstation Trip',
+  oneway: 'One Way Drop',
+  airport: 'Airport Transfer',
+  local: 'Local Ride',
+};
 
 const ContactSection = () => {
   const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
     pickup: '',
     drop: '',
     date: '',
     time: '',
+    package: 'outstation',
   });
+  const [activePackage, setActivePackage] = useState('outstation');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleBookNow = () => {
+    const result = bookingSchema.safeParse({ ...formData, package: activePackage });
     
+    if (!result.success) {
+      const firstError = result.error.errors[0]?.message || 'Please fill all fields';
+      alert(firstError);
+      return;
+    }
+
+    const { pickup, drop, date, time } = result.data;
+    const packageType = packageLabels[activePackage];
+    
+    // Format date for display
+    const formattedDate = new Date(date).toLocaleDateString('en-IN', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+
     // Create WhatsApp message
-    const message = `Hi! I'd like to book a cab.
-    
-Name: ${formData.name}
-Phone: ${formData.phone}
-Pickup: ${formData.pickup}
-Drop: ${formData.drop}
-Date: ${formData.date}
-Time: ${formData.time}`;
+    const message = `🚕 *New Cab Booking Request*
+
+📦 *Package:* ${packageType}
+📍 *Pickup:* ${pickup}
+📍 *Drop:* ${drop}
+📅 *Date:* ${formattedDate}
+⏰ *Time:* ${time}
+
+Please confirm availability and fare.`;
 
     const whatsappUrl = `https://wa.me/919880077291?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    // Limit input length
+    if (value.length <= 200) {
+      setFormData({ ...formData, [name]: value });
+    }
   };
+
+  const packages = [
+    { id: 'outstation', label: 'Outstation' },
+    { id: 'oneway', label: 'One Way' },
+    { id: 'airport', label: 'Airport' },
+    { id: 'local', label: 'Local' },
+  ];
+
+  // Get minimum date (today)
+  const today = new Date().toISOString().split('T')[0];
 
   return (
     <section id="contact" className="section-padding bg-primary">
@@ -45,8 +93,8 @@ Time: ${formData.time}`;
               Ready to Book Your Ride?
             </h2>
             <p className="text-primary-foreground/80 text-lg mb-10">
-              Fill out the form or give us a call. We're available 24/7 to assist you 
-              with your travel needs in Bangalore.
+              Select your package, enter your trip details, and book instantly via WhatsApp. 
+              We're available 24/7 to assist you.
             </p>
 
             {/* Contact Cards */}
@@ -86,115 +134,122 @@ Time: ${formData.time}`;
             </div>
           </div>
 
-          {/* Right - Booking Form */}
+          {/* Right - Booking Widget */}
           <div className="bg-card rounded-2xl p-6 lg:p-8 shadow-xl">
-            <h3 className="heading-tertiary text-foreground mb-6">Book Your Cab</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Your Name
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    placeholder="Enter your name"
-                    required
-                    className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="Your phone number"
-                    required
-                    className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-                  />
-                </div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
+                <Car className="w-5 h-5 text-accent-foreground" />
               </div>
+              <h3 className="heading-tertiary text-foreground">Book Your Cab</h3>
+            </div>
 
+            {/* Package Selection */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Select Package
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {packages.map((pkg) => (
+                  <button
+                    key={pkg.id}
+                    type="button"
+                    onClick={() => setActivePackage(pkg.id)}
+                    className={`py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                      activePackage === pkg.id
+                        ? 'bg-accent text-accent-foreground shadow-gold'
+                        : 'bg-secondary text-foreground hover:bg-secondary/80'
+                    }`}
+                  >
+                    {pkg.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Pickup & Drop */}
+            <div className="space-y-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Pickup Location
                 </label>
-                <input
-                  type="text"
-                  name="pickup"
-                  value={formData.pickup}
-                  onChange={handleChange}
-                  placeholder="Enter pickup address"
-                  required
-                  className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-                />
+                <div className="relative">
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-accent" />
+                  <input
+                    type="text"
+                    name="pickup"
+                    value={formData.pickup}
+                    onChange={handleChange}
+                    placeholder="Enter pickup address"
+                    maxLength={200}
+                    className="w-full pl-12 pr-4 py-3.5 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Drop Location
                 </label>
+                <div className="relative">
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
+                  <input
+                    type="text"
+                    name="drop"
+                    value={formData.drop}
+                    onChange={handleChange}
+                    placeholder="Enter drop address"
+                    maxLength={200}
+                    className="w-full pl-12 pr-4 py-3.5 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Date & Time */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Date
+                </label>
                 <input
-                  type="text"
-                  name="drop"
-                  value={formData.drop}
+                  type="date"
+                  name="date"
+                  value={formData.date}
                   onChange={handleChange}
-                  placeholder="Enter drop address"
-                  required
-                  className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                  min={today}
+                  className="w-full px-4 py-3.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
                 />
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    name="date"
-                    value={formData.date}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Time
-                  </label>
-                  <input
-                    type="time"
-                    name="time"
-                    value={formData.time}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Time
+                </label>
+                <input
+                  type="time"
+                  name="time"
+                  value={formData.time}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                />
               </div>
+            </div>
 
-              <button
-                type="submit"
-                className="btn-accent w-full flex items-center justify-center gap-2 py-4 text-lg"
-              >
-                <Send className="w-5 h-5" />
-                <span>Send Booking Request</span>
-              </button>
+            {/* Book Now Button */}
+            <button
+              type="button"
+              onClick={handleBookNow}
+              className="btn-accent w-full flex items-center justify-center gap-3 py-4 text-lg"
+            >
+              <Send className="w-5 h-5" />
+              <span>Book Now via WhatsApp</span>
+            </button>
 
-              <p className="text-center text-sm text-muted-foreground">
-                Or call us directly at{' '}
-                <a href="tel:9880077291" className="text-accent font-semibold hover:underline">
-                  9880077291
-                </a>
-              </p>
-            </form>
+            <p className="text-center text-sm text-muted-foreground mt-4">
+              Or call us directly at{' '}
+              <a href="tel:9880077291" className="text-accent font-semibold hover:underline">
+                9880077291
+              </a>
+            </p>
           </div>
         </div>
       </div>
