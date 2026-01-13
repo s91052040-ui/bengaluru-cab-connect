@@ -1,5 +1,6 @@
 import Navbar from '@/components/Navbar';
 import HeroSection from '@/components/HeroSection';
+import BookingWidget from '@/components/BookingWidget';
 import ServicesSection from '@/components/ServicesSection';
 import WhyChooseUs from '@/components/WhyChooseUs';
 import FleetSection from '@/components/FleetSection';
@@ -13,6 +14,7 @@ const Index = () => {
     <main className="min-h-screen">
       <Navbar />
       <HeroSection />
+      <BookingWidget />
       <ServicesSection />
       <WhyChooseUs />
       <FleetSection />
